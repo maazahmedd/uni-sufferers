@@ -1,0 +1,2 @@
+The file 'Creations' contains all the .piskel files which we created using Piskel. They can be opened using the Piskel Application which 
+can be downloaded at https://www.piskelapp.com/download
