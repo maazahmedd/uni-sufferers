@@ -1,0 +1,49 @@
+:root {
+  --bg: #f8f4ea;
+  --fg: #1f1b16;
+  --accent: #c23d2a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+  background: radial-gradient(circle at top, #fff6d9, var(--bg));
+  color: var(--fg);
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  overflow: hidden;
+}
+
+main {
+  width: min(1100px, 100%);
+  text-align: center;
+}
+
+h1 {
+  margin: 0 0 8px;
+  font-size: clamp(1.9rem, 4.8vw, 3.5rem);
+  letter-spacing: 0.08em;
+  line-height: 1.05;
+}
+
+p {
+  font-size: clamp(1rem, 2.1vw, 2rem);
+  margin: 0 0 10px;
+}
+
+#canvas-wrapper {
+  display: inline-block;
+  border: 4px solid #29231d;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+  line-height: 0;
+}
+
+canvas {
+  display: block;
+}
