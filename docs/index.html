@@ -11,15 +11,30 @@
   <body>
     <main>
       <h1>UNI SUFFERERS</h1>
+      <p id="mobile-tagline">
+        First save your mental health.<br />
+        Then go get that 4.0 GPA.
+      </p>
       <div id="canvas-wrapper"></div>
       <div id="mobile-controls" aria-label="Mobile game controls">
-        <div class="mobile-pad mobile-pad-horizontal">
-          <button type="button" data-key="left" aria-label="Move left">&#x25C0;</button>
-          <button type="button" data-key="right" aria-label="Move right">&#x25B6;</button>
-        </div>
-        <div class="mobile-pad mobile-pad-vertical">
-          <button type="button" data-key="up" aria-label="Move up">&#x25B2;</button>
-          <button type="button" data-key="down" aria-label="Move down">&#x25BC;</button>
+        <div id="mobile-dpad">
+          <button type="button" class="dpad-btn dpad-up" data-key="up" aria-label="Move up">
+            &#x25B2;
+          </button>
+          <button type="button" class="dpad-btn dpad-left" data-key="left" aria-label="Move left">
+            &#x25C0;
+          </button>
+          <button type="button" class="dpad-btn dpad-down" data-key="down" aria-label="Move down">
+            &#x25BC;
+          </button>
+          <button
+            type="button"
+            class="dpad-btn dpad-right"
+            data-key="right"
+            aria-label="Move right"
+          >
+            &#x25B6;
+          </button>
         </div>
       </div>
     </main>

@@ -34,7 +34,6 @@ let gameCanvas;
 let touchControlsEnabled = false;
 let ignoreMouseClickUntil = 0;
 let mobileControlsRoot = null;
-let mobileControlButtons = [];
 let mobileControlsVisible = false;
 const mobilePointerKeyById = new Map();
 
@@ -62,7 +61,11 @@ window.addEventListener(
   'touchmove',
   (event) => {
     const wrapper = document.getElementById('canvas-wrapper');
-    if (wrapper && wrapper.contains(event.target)) {
+    const controls = document.getElementById('mobile-controls');
+    if (
+      (wrapper && wrapper.contains(event.target)) ||
+      (controls && controls.contains(event.target))
+    ) {
       event.preventDefault();
     }
   },
@@ -238,8 +241,7 @@ function setupMobileControls() {
     return;
   }
 
-  mobileControlButtons = Array.from(mobileControlsRoot.querySelectorAll('button[data-key]'));
-
+  const buttons = Array.from(mobileControlsRoot.querySelectorAll('button[data-key]'));
   const releasePointer = (event) => {
     if (!mobilePointerKeyById.has(event.pointerId)) {
       return;
@@ -248,10 +250,10 @@ function setupMobileControls() {
     recomputeMobileButtonInput();
   };
 
-  for (const button of mobileControlButtons) {
+  for (const button of buttons) {
     button.addEventListener('contextmenu', (event) => event.preventDefault());
     button.addEventListener('pointerdown', (event) => {
-      if (!touchControlsEnabled) {
+      if (!mobileControlsVisible || !touchControlsEnabled) {
         return;
       }
       event.preventDefault();
@@ -264,10 +266,10 @@ function setupMobileControls() {
         return;
       }
 
-      mobilePointerKeyById.set(event.pointerId, keyName);
       if (typeof button.setPointerCapture === 'function') {
         button.setPointerCapture(event.pointerId);
       }
+      mobilePointerKeyById.set(event.pointerId, keyName);
       recomputeMobileButtonInput();
     });
 
@@ -299,11 +301,17 @@ function syncMobileControlsVisibility() {
     mobilePointerKeyById.clear();
     recomputeMobileButtonInput();
   }
+
   updateMobileControlButtonStates();
 }
 
 function updateMobileControlButtonStates() {
-  for (const button of mobileControlButtons) {
+  if (!mobileControlsRoot) {
+    return;
+  }
+
+  const buttons = mobileControlsRoot.querySelectorAll('button[data-key]');
+  for (const button of buttons) {
     const keyName = button.dataset.key;
     button.classList.toggle('active', keyName ? mobileButtonInput[keyName] : false);
   }
