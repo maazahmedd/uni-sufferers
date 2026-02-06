@@ -42,51 +42,6 @@ const CONTROL_KEYS = ['left', 'right', 'up', 'down'];
 const keyboardInput = { left: false, right: false, up: false, down: false };
 const mobileButtonInput = { left: false, right: false, up: false, down: false };
 
-// ── Audio debug overlay (enabled with ?debug=1) ──────────────────────────
-const _audioDebugEnabled = new URLSearchParams(window.location.search).get('debug') === '1';
-const _audioLogEntries = [];
-const _AUDIO_LOG_MAX = 8;
-
-function _audioLog(msg) {
-  const ts = ((performance.now() / 1000) | 0) + 's';
-  _audioLogEntries.push(ts + ' ' + msg);
-  if (_audioLogEntries.length > _AUDIO_LOG_MAX) {
-    _audioLogEntries.shift();
-  }
-}
-
-function _createAudioDebugPanel() {
-  if (!_audioDebugEnabled) return;
-  const el = document.createElement('div');
-  el.id = 'audio-debug';
-  el.style.cssText =
-    'position:fixed;bottom:4px;right:4px;z-index:99999;background:rgba(0,0,0,0.82);' +
-    'color:#0f0;font:10px/1.35 monospace;padding:6px 8px;border-radius:6px;' +
-    'max-width:340px;pointer-events:none;white-space:pre-wrap;word-break:break-all;';
-  document.body.appendChild(el);
-}
-
-function _updateAudioDebugPanel() {
-  if (!_audioDebugEnabled) return;
-  const el = document.getElementById('audio-debug');
-  if (!el) return;
-  let ctxState = '?';
-  try { ctxState = getAudioContext().state; } catch (_) {}
-  const introLoaded = !!(game && game.introSound);
-  const bgLoaded = !!(game && game.backgroundSound);
-  const level = game ? game.level : '-';
-  const lines = [
-    'ctx.state: ' + ctxState,
-    'audioEnabled: ' + audioEnabled,
-    '_audioRetryPending: ' + _audioRetryPending,
-    'introSound: ' + introLoaded,
-    'bgSound: ' + bgLoaded,
-    'level: ' + level,
-    '── log ──',
-  ].concat(_audioLogEntries.length ? _audioLogEntries : ['(none)']);
-  el.textContent = lines.join('\n');
-}
-
 window.addEventListener(
   'keydown',
   (event) => {
@@ -133,7 +88,6 @@ window.addEventListener(
       try {
         const ctx = getAudioContext();
         if (ctx.state !== 'running') {
-          _audioLog(evtName + ': ctx.resume() from state=' + ctx.state);
           ctx.resume();
           // Silent-buffer trick: playing a tiny silent buffer helps "warm up"
           // the AudioContext on iOS Safari so it transitions to 'running'.
@@ -160,7 +114,6 @@ document.addEventListener('visibilitychange', () => {
     try {
       const ctx = getAudioContext();
       if (ctx.state !== 'running') {
-        _audioLog('visibilitychange: resuming from state=' + ctx.state);
         ctx.resume();
       }
     } catch (_) {}
@@ -198,14 +151,12 @@ function setup() {
   updateTouchControlsEnabled();
   applyInputState();
   loadAudioAssets();
-  _createAudioDebugPanel();
 
   // When the AudioContext transitions to 'running' (may happen asynchronously
   // after a user gesture on some browsers), enable audio and start music.
   try {
     const ctx = getAudioContext();
     ctx.addEventListener('statechange', () => {
-      _audioLog('statechange: ' + ctx.state);
       if (ctx.state === 'running' && _audioRetryPending) {
         audioEnabled = true;
         _audioRetryPending = false;
@@ -233,7 +184,6 @@ function draw() {
   if (_audioRetryPending) {
     try {
       if (getAudioContext().state === 'running') {
-        _audioLog('draw() safety-net: ctx now running');
         audioEnabled = true;
         _audioRetryPending = false;
         _playMusicForCurrentLevel();
@@ -244,7 +194,6 @@ function draw() {
   background(255, 255, 255);
   game.display();
   syncMobileControlsVisibility();
-  _updateAudioDebugPanel();
 }
 
 function layoutCanvas() {
@@ -293,7 +242,6 @@ function isAudioContextRunning() {
 }
 
 function enableAudio() {
-  _audioLog('enableAudio() called');
   const ctx = getAudioContext();
 
   // Attempt synchronous resume — this is the call that must happen inside
@@ -304,7 +252,6 @@ function enableAudio() {
 
   if (ctx.state === 'running') {
     // Immediate path (works on desktop, sometimes iOS)
-    _audioLog('enableAudio: immediate running');
     audioEnabled = true;
     _audioRetryPending = false;
     _playMusicForCurrentLevel();
@@ -314,12 +261,10 @@ function enableAudio() {
   // Context hasn't flipped to 'running' yet — mark pending so the
   // statechange listener or the draw() safety-net can pick it up.
   _audioRetryPending = true;
-  _audioLog('enableAudio: deferred, ctx.state=' + ctx.state);
 
   // Deferred path: wait for the resume() Promise to resolve.
   if (p && typeof p.then === 'function') {
     p.then(() => {
-      _audioLog('enableAudio: resume promise resolved, state=' + getAudioContext().state);
       if (getAudioContext().state === 'running' && !audioEnabled) {
         audioEnabled = true;
         _audioRetryPending = false;
@@ -334,10 +279,8 @@ function _playMusicForCurrentLevel() {
     return;
   }
   if (game.level === 0) {
-    _audioLog('_playMusic: intro (lvl 0)');
     game.playIntroLoop();
   } else if (game.level > 0 && game.level < 12) {
-    _audioLog('_playMusic: bg (lvl ' + game.level + ')');
     game.playBackgroundLoop();
   }
 }
@@ -1253,7 +1196,6 @@ class Game {
   }
 
   playIntroLoop() {
-    _audioLog('playIntroLoop: enabled=' + audioEnabled + ' sound=' + !!this.introSound);
     if (!audioEnabled || !this.introSound) {
       return;
     }
@@ -1268,7 +1210,6 @@ class Game {
   }
 
   playBackgroundLoop() {
-    _audioLog('playBgLoop: enabled=' + audioEnabled + ' sound=' + !!this.backgroundSound);
     if (!audioEnabled || !this.backgroundSound) {
       return;
     }

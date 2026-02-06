@@ -298,3 +298,20 @@ body.mobile-layout .dpad-icon {
   width: 42px;
   height: 42px;
 }
+
+#audio-hint {
+  display: none;
+}
+
+body.mobile-layout #audio-hint {
+  display: block;
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  color: rgba(31, 27, 22, 0.45);
+  font-size: 0.62rem;
+  letter-spacing: 0.02em;
+  text-align: center;
+}
