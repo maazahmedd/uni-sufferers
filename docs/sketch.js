@@ -152,21 +152,40 @@ function windowResized() {
   layoutCanvas();
 }
 
+function isAudioContextRunning() {
+  return getAudioContext().state === 'running';
+}
+
 function enableAudio() {
-  if (audioEnabled) {
+  const ctx = getAudioContext();
+  if (ctx.state === 'running') {
+    audioEnabled = true;
+    if (game) {
+      if (game.level === 0) {
+        game.playIntroLoop();
+      } else if (game.level > 0 && game.level < 12) {
+        game.playBackgroundLoop();
+      }
+    }
     return;
   }
 
-  const ctx = getAudioContext();
-  if (ctx.state !== 'running') {
-    userStartAudio();
-  }
+  userStartAudio()
+    .then(() => {
+      audioEnabled = isAudioContextRunning();
+      if (!audioEnabled || !game) {
+        return;
+      }
 
-  audioEnabled = true;
-
-  if (game && game.level === 0) {
-    game.playIntroLoop();
-  }
+      if (game.level === 0) {
+        game.playIntroLoop();
+      } else if (game.level > 0 && game.level < 12) {
+        game.playBackgroundLoop();
+      }
+    })
+    .catch(() => {
+      audioEnabled = false;
+    });
 }
 
 function startGame() {
@@ -258,7 +277,7 @@ function setupMobileControls() {
         return;
       }
       event.preventDefault();
-      if (!audioEnabled) {
+      if (!audioEnabled || !isAudioContextRunning()) {
         enableAudio();
       }
 
@@ -1508,7 +1527,7 @@ function keyReleased() {
 }
 
 function mousePressed() {
-  if (!audioEnabled) {
+  if (!audioEnabled || !isAudioContextRunning()) {
     enableAudio();
   }
 }
@@ -1526,7 +1545,7 @@ function mouseClicked() {
 function touchStarted() {
   ignoreMouseClickUntil = Date.now() + 500;
 
-  if (!audioEnabled) {
+  if (!audioEnabled || !isAudioContextRunning()) {
     enableAudio();
   }
 
