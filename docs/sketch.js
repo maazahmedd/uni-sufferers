@@ -132,13 +132,14 @@ function layoutCanvas() {
     : Math.min(window.innerHeight, document.documentElement.clientHeight || window.innerHeight);
 
   const nonCanvasHeight = Math.max(0, main.scrollHeight - wrapper.offsetHeight);
-  const outerPadding = touchControlsEnabled ? 12 : 24;
+  const safetyGutter = touchControlsEnabled ? 16 : 0;
+  const outerPadding = touchControlsEnabled ? 12 + safetyGutter : 24;
   const availableW = Math.max(200, viewportW - outerPadding);
   const availableH = Math.max(200, viewportH - outerPadding - nonCanvasHeight);
   const scale = Math.max(0.35, Math.min(1, availableW / SCREEN_W, availableH / SCREEN_H));
 
-  const scaledW = Math.floor(SCREEN_W * scale);
-  const scaledH = Math.floor(SCREEN_H * scale);
+  const scaledW = Math.round(SCREEN_W * scale);
+  const scaledH = Math.round(SCREEN_H * scale);
 
   wrapper.style.width = `${scaledW}px`;
   wrapper.style.height = `${scaledH}px`;

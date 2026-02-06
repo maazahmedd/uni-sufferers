@@ -46,7 +46,10 @@ h1 {
 
 #canvas-wrapper {
   display: inline-block;
-  border: 4px solid #29231d;
+  border: 0;
+  outline: 4px solid #29231d;
+  outline-offset: 0;
+  overflow: hidden;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
   line-height: 0;
   touch-action: none;
@@ -106,9 +109,6 @@ canvas {
   background: linear-gradient(145deg, #9f88e6 0%, #7a5fc8 46%, #684cb8 100%);
   color: #ffffff;
   font-family: "Trebuchet MS", "Segoe UI", sans-serif;
-  font-size: 2.35rem;
-  font-weight: 900;
-  line-height: 1;
   display: grid;
   place-items: center;
   box-shadow:
@@ -122,6 +122,13 @@ canvas {
   -webkit-tap-highlight-color: transparent;
   user-select: none;
   transition: transform 90ms ease, box-shadow 90ms ease, background 90ms ease;
+}
+
+.dpad-icon {
+  width: 44px;
+  height: 44px;
+  fill: #ffffff;
+  display: block;
 }
 
 .dpad-btn.active {
@@ -178,5 +185,9 @@ body.mobile-layout #mobile-dpad {
 body.mobile-layout .dpad-btn {
   width: 90px;
   height: 90px;
-  font-size: 2.15rem;
+}
+
+body.mobile-layout .dpad-icon {
+  width: 42px;
+  height: 42px;
 }
