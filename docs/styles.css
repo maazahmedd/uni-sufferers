@@ -4,6 +4,13 @@
   --accent: #c23d2a;
 }
 
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -18,6 +25,7 @@ body {
   place-items: center;
   padding: 12px;
   overflow: hidden;
+  overscroll-behavior: none;
 }
 
 main {
@@ -32,18 +40,111 @@ h1 {
   line-height: 1.05;
 }
 
-p {
-  font-size: clamp(1rem, 2.1vw, 2rem);
-  margin: 0 0 10px;
-}
-
 #canvas-wrapper {
   display: inline-block;
   border: 4px solid #29231d;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
   line-height: 0;
+  touch-action: none;
 }
 
 canvas {
   display: block;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+#mobile-controls {
+  display: none;
+  width: min(410px, 92vw);
+  margin: 24px auto 0;
+  padding: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+
+#mobile-controls.visible {
+  display: flex;
+}
+
+.mobile-pad {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 24px;
+  border: 2px solid rgba(17, 14, 10, 0.65);
+  background:
+    radial-gradient(circle at 30% 18%, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 46%),
+    linear-gradient(165deg, #252830, #14171d);
+  box-shadow:
+    0 10px 20px rgba(0, 0, 0, 0.26),
+    inset 0 1px 1px rgba(255, 255, 255, 0.2);
+}
+
+.mobile-pad-vertical {
+  flex-direction: column;
+}
+
+#mobile-controls button {
+  width: 58px;
+  height: 58px;
+  border: 2px solid rgba(10, 9, 7, 0.45);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 28% 24%, #fffef6, #f6f1de 52%, #ece3ca);
+  color: #131211;
+  font: 900 1.5rem/1 "Trebuchet MS", "Segoe UI", sans-serif;
+  box-shadow:
+    0 7px 12px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 90ms ease, box-shadow 90ms ease, background 90ms ease, color 90ms ease;
+}
+
+#mobile-controls button.active {
+  transform: translateY(1px) scale(0.97);
+  background:
+    radial-gradient(circle at 25% 20%, #ffe99f, #ffd25e 60%, #f3bd35);
+  color: #0d0c0b;
+  box-shadow:
+    0 4px 8px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 249, 210, 0.9);
+}
+
+body.mobile-layout {
+  display: block;
+  min-height: 100dvh;
+  padding: 10px 6px 8px;
+}
+
+body.mobile-layout main {
+  width: 100%;
+  padding-top: 6px;
+}
+
+body.mobile-layout h1 {
+  margin: 0 0 10px;
+  font-size: clamp(1.4rem, 8vw, 2.1rem);
+}
+
+body.mobile-layout #canvas-wrapper {
+  display: block;
+  margin: 0 auto;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+}
+
+body.mobile-layout #mobile-controls {
+  margin-top: 28px;
+  width: min(360px, 90vw);
+  gap: 14px;
+}
+
+body.mobile-layout #mobile-controls button {
+  width: 54px;
+  height: 54px;
+  font-size: 1.35rem;
 }

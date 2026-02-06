@@ -11,8 +11,17 @@
   <body>
     <main>
       <h1>UNI SUFFERERS</h1>
-      <p>Arrow keys to move, Space to start, click to restart after game over.</p>
       <div id="canvas-wrapper"></div>
+      <div id="mobile-controls" aria-label="Mobile game controls">
+        <div class="mobile-pad mobile-pad-horizontal">
+          <button type="button" data-key="left" aria-label="Move left">&#x25C0;</button>
+          <button type="button" data-key="right" aria-label="Move right">&#x25B6;</button>
+        </div>
+        <div class="mobile-pad mobile-pad-vertical">
+          <button type="button" data-key="up" aria-label="Move up">&#x25B2;</button>
+          <button type="button" data-key="down" aria-label="Move down">&#x25BC;</button>
+        </div>
+      </div>
     </main>
     <script src="./sketch.js"></script>
   </body>

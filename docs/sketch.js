@@ -31,6 +31,16 @@ const sounds = {};
 let game;
 let audioEnabled = false;
 let gameCanvas;
+let touchControlsEnabled = false;
+let ignoreMouseClickUntil = 0;
+let mobileControlsRoot = null;
+let mobileControlButtons = [];
+let mobileControlsVisible = false;
+const mobilePointerKeyById = new Map();
+
+const CONTROL_KEYS = ['left', 'right', 'up', 'down'];
+const keyboardInput = { left: false, right: false, up: false, down: false };
+const mobileButtonInput = { left: false, right: false, up: false, down: false };
 
 window.addEventListener(
   'keydown',
@@ -42,6 +52,17 @@ window.addEventListener(
       event.key === 'ArrowRight' ||
       event.key === ' '
     ) {
+      event.preventDefault();
+    }
+  },
+  { passive: false }
+);
+
+window.addEventListener(
+  'touchmove',
+  (event) => {
+    const wrapper = document.getElementById('canvas-wrapper');
+    if (wrapper && wrapper.contains(event.target)) {
       event.preventDefault();
     }
   },
@@ -67,15 +88,24 @@ function setup() {
   gameCanvas.parent('canvas-wrapper');
   frameRate(60);
   game = new Game(SCREEN_W, SCREEN_H);
+  setupMobileControls();
+  updateTouchControlsEnabled();
+  applyInputState();
   loadAudioAssets();
   layoutCanvas();
   // A second pass helps after font/layout settles.
   setTimeout(layoutCanvas, 0);
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', layoutCanvas);
+    window.visualViewport.addEventListener('scroll', layoutCanvas);
+  }
 }
 
 function draw() {
   background(255, 255, 255);
   game.display();
+  syncMobileControlsVisibility();
 }
 
 function layoutCanvas() {
@@ -91,12 +121,17 @@ function layoutCanvas() {
   gameCanvas.style('width', `${SCREEN_W}px`);
   gameCanvas.style('height', `${SCREEN_H}px`);
 
-  const mainRect = main.getBoundingClientRect();
-  const wrapperRect = wrapper.getBoundingClientRect();
-  const nonCanvasHeight = Math.max(0, mainRect.height - wrapperRect.height);
+  const viewportW = window.visualViewport
+    ? window.visualViewport.width
+    : Math.min(window.innerWidth, document.documentElement.clientWidth || window.innerWidth);
+  const viewportH = window.visualViewport
+    ? window.visualViewport.height
+    : Math.min(window.innerHeight, document.documentElement.clientHeight || window.innerHeight);
 
-  const availableW = Math.max(200, window.innerWidth - 24);
-  const availableH = Math.max(200, window.innerHeight - 24 - nonCanvasHeight);
+  const nonCanvasHeight = Math.max(0, main.scrollHeight - wrapper.offsetHeight);
+  const outerPadding = touchControlsEnabled ? 12 : 24;
+  const availableW = Math.max(200, viewportW - outerPadding);
+  const availableH = Math.max(200, viewportH - outerPadding - nonCanvasHeight);
   const scale = Math.max(0.35, Math.min(1, availableW / SCREEN_W, availableH / SCREEN_H));
 
   const scaledW = Math.floor(SCREEN_W * scale);
@@ -109,6 +144,7 @@ function layoutCanvas() {
 }
 
 function windowResized() {
+  updateTouchControlsEnabled();
   layoutCanvas();
 }
 
@@ -127,6 +163,173 @@ function enableAudio() {
   if (game && game.level === 0) {
     game.playIntroLoop();
   }
+}
+
+function startGame() {
+  if (!game || game.level !== 0) {
+    return;
+  }
+
+  enableAudio();
+  game.level = 1;
+  game.playBackgroundLoop();
+  syncMobileControlsVisibility();
+}
+
+function restartGame() {
+  if (!game || game.level !== 12) {
+    return;
+  }
+
+  const wasMuted = game.isMuted;
+  if (audioEnabled && game.backgroundSound && game.backgroundSound.isPlaying()) {
+    game.backgroundSound.stop();
+  }
+  game = new Game(SCREEN_W, SCREEN_H);
+  game.setMuted(wasMuted);
+  applyInputState();
+  syncMobileControlsVisibility();
+}
+
+function updateTouchControlsEnabled() {
+  const hasCoarsePointer =
+    typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+  touchControlsEnabled =
+    hasCoarsePointer ||
+    (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0) ||
+    window.innerWidth <= 900;
+  document.body.classList.toggle('mobile-layout', touchControlsEnabled);
+  syncMobileControlsVisibility();
+}
+
+function clearDirectionalState(inputState) {
+  for (const keyName of CONTROL_KEYS) {
+    inputState[keyName] = false;
+  }
+}
+
+function recomputeMobileButtonInput() {
+  clearDirectionalState(mobileButtonInput);
+  for (const keyName of mobilePointerKeyById.values()) {
+    if (Object.prototype.hasOwnProperty.call(mobileButtonInput, keyName)) {
+      mobileButtonInput[keyName] = true;
+    }
+  }
+  applyInputState();
+  updateMobileControlButtonStates();
+}
+
+function applyInputState() {
+  if (!game) {
+    return;
+  }
+
+  for (const keyName of CONTROL_KEYS) {
+    const pressed = keyboardInput[keyName] || mobileButtonInput[keyName];
+    game.faiza.keyHandler[keyName] = pressed;
+    game.anxiety.keyHandler[keyName] = pressed;
+    game.anxiety2.keyHandler[keyName] = pressed;
+  }
+}
+
+function setupMobileControls() {
+  mobileControlsRoot = document.getElementById('mobile-controls');
+  if (!mobileControlsRoot) {
+    return;
+  }
+
+  mobileControlButtons = Array.from(mobileControlsRoot.querySelectorAll('button[data-key]'));
+
+  const releasePointer = (event) => {
+    if (!mobilePointerKeyById.has(event.pointerId)) {
+      return;
+    }
+    mobilePointerKeyById.delete(event.pointerId);
+    recomputeMobileButtonInput();
+  };
+
+  for (const button of mobileControlButtons) {
+    button.addEventListener('contextmenu', (event) => event.preventDefault());
+    button.addEventListener('pointerdown', (event) => {
+      if (!touchControlsEnabled) {
+        return;
+      }
+      event.preventDefault();
+      if (!audioEnabled) {
+        enableAudio();
+      }
+
+      const keyName = button.dataset.key;
+      if (!keyName) {
+        return;
+      }
+
+      mobilePointerKeyById.set(event.pointerId, keyName);
+      if (typeof button.setPointerCapture === 'function') {
+        button.setPointerCapture(event.pointerId);
+      }
+      recomputeMobileButtonInput();
+    });
+
+    button.addEventListener('pointerup', releasePointer);
+    button.addEventListener('pointercancel', releasePointer);
+    button.addEventListener('lostpointercapture', releasePointer);
+  }
+
+  window.addEventListener('blur', () => {
+    clearDirectionalState(keyboardInput);
+    mobilePointerKeyById.clear();
+    recomputeMobileButtonInput();
+  });
+}
+
+function syncMobileControlsVisibility() {
+  if (!mobileControlsRoot) {
+    return;
+  }
+
+  const shouldShow = touchControlsEnabled && game && game.level > 0 && game.level < 12;
+  if (shouldShow !== mobileControlsVisible) {
+    mobileControlsVisible = shouldShow;
+    mobileControlsRoot.classList.toggle('visible', shouldShow);
+    layoutCanvas();
+  }
+
+  if (!shouldShow && mobilePointerKeyById.size > 0) {
+    mobilePointerKeyById.clear();
+    recomputeMobileButtonInput();
+  }
+  updateMobileControlButtonStates();
+}
+
+function updateMobileControlButtonStates() {
+  for (const button of mobileControlButtons) {
+    const keyName = button.dataset.key;
+    button.classList.toggle('active', keyName ? mobileButtonInput[keyName] : false);
+  }
+}
+
+function handlePointerTap(px, py) {
+  if (!game) {
+    return false;
+  }
+
+  if (game.isVolumeButtonHit(px, py)) {
+    game.toggleMute();
+    return true;
+  }
+
+  if (game.level === 0) {
+    startGame();
+    return true;
+  }
+
+  if (game.level === 12) {
+    restartGame();
+    return true;
+  }
+
+  return false;
 }
 
 function loadAudioAssets() {
@@ -1145,12 +1348,15 @@ class Game {
     noStroke();
 
     if (this.level === 0) {
+      push();
+      textAlign(CENTER, BASELINE);
       textSize(80);
       fill(0);
-      text('UNI SUFFERERS', 230, 80);
+      text('UNI SUFFERERS', this.w / 2, 80);
       textSize(40);
       fill(255, 213, 43);
-      text('Press the space bar to begin playing!', 180, 650);
+      text('Press space or tap to begin playing!', this.w / 2, 650);
+      pop();
     }
 
     if (this.level === 12) {
@@ -1166,7 +1372,7 @@ class Game {
       );
       text('you finally got that 4.0 GPA!', 240, 590);
       fill(255, 213, 43);
-      text('Think you can do better? Click on the', 240, 650);
+      text('Think you can do better? Tap or click on the', 240, 650);
       text('screen to play again!', 240, 690);
     }
 
@@ -1261,48 +1467,35 @@ class Game {
 
 function keyPressed() {
   if (keyCode === 32 && game.level === 0) {
-    enableAudio();
-    game.level = 1;
-    game.playBackgroundLoop();
+    startGame();
+    return false;
   }
 
   if (keyCode === LEFT_ARROW) {
-    game.faiza.keyHandler.left = true;
-    game.anxiety.keyHandler.left = true;
-    game.anxiety2.keyHandler.left = true;
+    keyboardInput.left = true;
   } else if (keyCode === RIGHT_ARROW) {
-    game.faiza.keyHandler.right = true;
-    game.anxiety.keyHandler.right = true;
-    game.anxiety2.keyHandler.right = true;
+    keyboardInput.right = true;
   } else if (keyCode === UP_ARROW) {
-    game.faiza.keyHandler.up = true;
-    game.anxiety.keyHandler.up = true;
-    game.anxiety2.keyHandler.up = true;
+    keyboardInput.up = true;
   } else if (keyCode === DOWN_ARROW) {
-    game.faiza.keyHandler.down = true;
-    game.anxiety.keyHandler.down = true;
-    game.anxiety2.keyHandler.down = true;
+    keyboardInput.down = true;
   }
+
+  applyInputState();
 }
 
 function keyReleased() {
   if (keyCode === LEFT_ARROW) {
-    game.faiza.keyHandler.left = false;
-    game.anxiety.keyHandler.left = false;
-    game.anxiety2.keyHandler.left = false;
+    keyboardInput.left = false;
   } else if (keyCode === RIGHT_ARROW) {
-    game.faiza.keyHandler.right = false;
-    game.anxiety.keyHandler.right = false;
-    game.anxiety2.keyHandler.right = false;
+    keyboardInput.right = false;
   } else if (keyCode === UP_ARROW) {
-    game.faiza.keyHandler.up = false;
-    game.anxiety.keyHandler.up = false;
-    game.anxiety2.keyHandler.up = false;
+    keyboardInput.up = false;
   } else if (keyCode === DOWN_ARROW) {
-    game.faiza.keyHandler.down = false;
-    game.anxiety.keyHandler.down = false;
-    game.anxiety2.keyHandler.down = false;
+    keyboardInput.down = false;
   }
+
+  applyInputState();
 }
 
 function mousePressed() {
@@ -1312,17 +1505,35 @@ function mousePressed() {
 }
 
 function mouseClicked() {
-  if (game && game.isVolumeButtonHit(mouseX, mouseY)) {
-    game.toggleMute();
-    return;
+  if (Date.now() < ignoreMouseClickUntil) {
+    return false;
   }
 
-  if (game.level === 12) {
-    const wasMuted = game.isMuted;
-    if (audioEnabled && game.backgroundSound && game.backgroundSound.isPlaying()) {
-      game.backgroundSound.stop();
-    }
-    game = new Game(SCREEN_W, SCREEN_H);
-    game.setMuted(wasMuted);
+  if (handlePointerTap(mouseX, mouseY)) {
+    return false;
   }
+}
+
+function touchStarted() {
+  ignoreMouseClickUntil = Date.now() + 500;
+
+  if (!audioEnabled) {
+    enableAudio();
+  }
+
+  for (const t of touches) {
+    if (handlePointerTap(t.x, t.y)) {
+      break;
+    }
+  }
+
+  return false;
+}
+
+function touchMoved() {
+  return false;
+}
+
+function touchEnded() {
+  return false;
 }
