@@ -30,6 +30,7 @@ const images = {};
 const sounds = {};
 let game;
 let audioEnabled = false;
+let _audioRetryPending = false;
 let gameCanvas;
 let touchControlsEnabled = false;
 let ignoreMouseClickUntil = 0;
@@ -72,6 +73,26 @@ window.addEventListener(
   { passive: false }
 );
 
+// Native DOM listeners to resume AudioContext inside the user-gesture context.
+// iOS Safari requires ctx.resume() to happen synchronously in a gesture handler;
+// p5.js callbacks run too late (microtask / rAF) for iOS to accept them.
+['touchstart', 'touchend', 'click', 'keydown'].forEach((evtName) => {
+  document.addEventListener(
+    evtName,
+    () => {
+      try {
+        const ctx = getAudioContext();
+        if (ctx.state !== 'running') {
+          ctx.resume();
+        }
+      } catch (_) {
+        // getAudioContext not available yet — ignore
+      }
+    },
+    { once: false, passive: true }
+  );
+});
+
 function randInt(min, max) {
   return Math.floor(random(min, max + 1));
 }
@@ -103,6 +124,22 @@ function setup() {
   updateTouchControlsEnabled();
   applyInputState();
   loadAudioAssets();
+
+  // When the AudioContext transitions to 'running' (may happen asynchronously
+  // after a user gesture on some browsers), enable audio and start music.
+  try {
+    const ctx = getAudioContext();
+    ctx.addEventListener('statechange', () => {
+      if (ctx.state === 'running' && _audioRetryPending) {
+        audioEnabled = true;
+        _audioRetryPending = false;
+        _playMusicForCurrentLevel();
+      }
+    });
+  } catch (_) {
+    // getAudioContext may not be ready yet — the draw() fallback will cover it
+  }
+
   markAppReady();
   layoutCanvas();
   // A second pass helps after font/layout settles.
@@ -115,6 +152,18 @@ function setup() {
 }
 
 function draw() {
+  // Safety-net: if a previous enableAudio() couldn't finish synchronously,
+  // poll the AudioContext each frame.  Negligible cost (one property read).
+  if (_audioRetryPending) {
+    try {
+      if (getAudioContext().state === 'running') {
+        audioEnabled = true;
+        _audioRetryPending = false;
+        _playMusicForCurrentLevel();
+      }
+    } catch (_) {}
+  }
+
   background(255, 255, 255);
   game.display();
   syncMobileControlsVisibility();
@@ -167,34 +216,48 @@ function isAudioContextRunning() {
 
 function enableAudio() {
   const ctx = getAudioContext();
+
+  // Attempt synchronous resume — this is the call that must happen inside
+  // the user-gesture context for iOS Safari.  The native DOM listeners
+  // (touchstart/click/etc.) already called ctx.resume() earlier in the same
+  // event, so by this point the context is very likely 'running'.
+  if (ctx.state !== 'running') {
+    ctx.resume();
+  }
+
   if (ctx.state === 'running') {
     audioEnabled = true;
-    if (game) {
-      if (game.level === 0) {
-        game.playIntroLoop();
-      } else if (game.level > 0 && game.level < 12) {
-        game.playBackgroundLoop();
-      }
-    }
+    _audioRetryPending = false;
+    _playMusicForCurrentLevel();
     return;
   }
 
+  // Context hasn't flipped to 'running' yet — mark pending so the
+  // statechange listener or the draw() safety-net can pick it up.
+  _audioRetryPending = true;
+
+  // Also kick off the p5 helper as a fallback (it wraps ctx.resume() in a
+  // Promise, which alone isn't enough on iOS but doesn't hurt).
   userStartAudio()
     .then(() => {
-      audioEnabled = isAudioContextRunning();
-      if (!audioEnabled || !game) {
-        return;
-      }
-
-      if (game.level === 0) {
-        game.playIntroLoop();
-      } else if (game.level > 0 && game.level < 12) {
-        game.playBackgroundLoop();
+      if (getAudioContext().state === 'running') {
+        audioEnabled = true;
+        _audioRetryPending = false;
+        _playMusicForCurrentLevel();
       }
     })
-    .catch(() => {
-      audioEnabled = false;
-    });
+    .catch(() => {});
+}
+
+function _playMusicForCurrentLevel() {
+  if (!audioEnabled || !game) {
+    return;
+  }
+  if (game.level === 0) {
+    game.playIntroLoop();
+  } else if (game.level > 0 && game.level < 12) {
+    game.playBackgroundLoop();
+  }
 }
 
 function startGame() {
@@ -202,9 +265,10 @@ function startGame() {
     return;
   }
 
-  enableAudio();
+  // Set level BEFORE enableAudio so that enableAudio → _playMusicForCurrentLevel
+  // sees level 1 and plays the background track (not the intro).
   game.level = 1;
-  game.playBackgroundLoop();
+  enableAudio();
   syncMobileControlsVisibility();
 }
 
@@ -1094,7 +1158,9 @@ class Game {
     this.backgroundSound = sounds.background;
     this.introSound = sounds.intro;
     this.applyVolumeState();
-    this.playIntroLoop();
+    if (audioEnabled) {
+      this.playIntroLoop();
+    }
 
     this.distractions.push(new Distractions(100, 300, 58, 'jake.png', 120, 120, 6));
     this.distractions.push(new Distractions(444, 333, 48, 'insta.png', 100, 100, 1));
