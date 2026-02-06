@@ -12,7 +12,18 @@
     <script src="https://cdn.jsdelivr.net/npm/p5@1.9.4/lib/p5.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/p5@1.9.4/lib/addons/p5.sound.min.js"></script>
   </head>
-  <body>
+  <body class="app-loading">
+    <div id="p5_loading" aria-live="polite">
+      <div class="pixel-loader-card" role="status">
+        <p class="pixel-loader-title">UNI SUFFERERS</p>
+        <p class="pixel-loader-subtitle">Loading campus chaos...</p>
+        <div class="pixel-loader-dots" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
+    </div>
     <main>
       <h1>UNI SUFFERERS</h1>
       <p id="mobile-tagline">

@@ -80,6 +80,14 @@ function positiveMod(n, m) {
   return ((n % m) + m) % m;
 }
 
+function markAppReady() {
+  if (!document.body) {
+    return;
+  }
+  document.body.classList.remove('app-loading');
+  document.body.classList.add('app-ready');
+}
+
 function preload() {
   for (const file of IMG_FILES) {
     images[file] = loadImage(`./assets/images/${file}`);
@@ -95,6 +103,7 @@ function setup() {
   updateTouchControlsEnabled();
   applyInputState();
   loadAudioAssets();
+  markAppReady();
   layoutCanvas();
   // A second pass helps after font/layout settles.
   setTimeout(layoutCanvas, 0);
